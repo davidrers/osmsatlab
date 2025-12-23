@@ -1,2 +1,0 @@
-# osmsatlab
-osmsatlab is a Python library for assesing on service accessibility, per-capita service provision, and spatial equity analysis using a vector-based geospatial approach. The project will primarily use OpenStreetMap (OSM) data for service locations and transport networks, combined with a nationwide population dataset (e.g. gridded population data) to quantify accessibility patterns, compute per-capita metrics, and assess spatial inequalities across administrative units.
