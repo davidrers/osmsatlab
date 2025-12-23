@@ -26,3 +26,9 @@ packages = [{include = "osmsatlab", from = "src"}]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)",
+    "ipykernel (>=7.1.0,<8.0.0)"
+]
