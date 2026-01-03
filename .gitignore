@@ -1,0 +1,8 @@
+# OSM and WorldPop cache
+cache/
+.cache/
+examples/cache/
+
+# Python
+__pycache__/
+*.pyc

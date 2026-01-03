@@ -1,9 +1,11 @@
 from osmsatlab.io.osm import download_osm_data
 from osmsatlab.io.population import get_population_data
 from osmsatlab.metrics.accessibility import calculate_nearest_service_distance, calculate_coverage
-from osmsatlab.metrics.equity import calculate_services_per_capita, calculate_population_per_service
+from osmsatlab.metrics.per_capita import calculate_services_per_capita, calculate_population_per_service
+from osmsatlab.constants import SERVICE_DEFINITIONS
 import geopandas as gpd
 import warnings
+from tqdm.auto import tqdm
 
 class OSMSatLab:
     """
@@ -11,7 +13,7 @@ class OSMSatLab:
     Manages data (population, services) and facilitates accessibility/equity calculations.
     """
     
-    def __init__(self, bbox=None, custom_geometry=None, crs="EPSG:3857"):
+    def __init__(self, bbox=None, custom_geometry=None, crs="EPSG:3857", load_population_year=2020, load_services=True):
         """
         Initialize the analysis helper.
         
@@ -19,6 +21,8 @@ class OSMSatLab:
             bbox (tuple, optional): (west, south, east, north).
             custom_geometry (shapely.Geometry or str, optional): Area of interest.
             crs (str): Target CRS for metric calculations (must be projected, default EPSG:3857).
+            load_population_year (int, optional): If provided, automatically loads population data for this year.
+            load_services (bool, optional): If True, automatically loads all standard service categories.
         """
         if bbox is None and custom_geometry is None:
             raise ValueError("Must provide either bbox or custom_geometry.")
@@ -29,6 +33,19 @@ class OSMSatLab:
         
         self.population = None
         self.services = {} # Dict of category -> GeoDataFrame
+
+
+        # Pre-load data if requested
+        if load_population_year is not None:
+            # Simple progress bar for population load
+            with tqdm(total=1, desc=f"Loading population ({load_population_year})") as pbar:
+                self.load_population(year=load_population_year)
+                pbar.update(1)
+
+        if load_services:
+            # Progress bar for iterating through service categories
+            for category, tags in tqdm(SERVICE_DEFINITIONS.items(), desc="Fetching services"):
+                self.fetch_services(tags, category_name=category)
         
     def load_population(self, year=2020):
         """
@@ -87,7 +104,8 @@ class OSMSatLab:
             raise ValueError("Population data not loaded. Call load_population() first.")
             
         if service_category not in self.services:
-            raise ValueError(f"Service category '{service_category}' not found. Call fetch_services() first.")
+            available = list(self.services.keys())
+            raise ValueError(f"Service category '{service_category}' not found. Available categories: {available}")
             
         services = self.services[service_category]
         pop_with_dist = calculate_nearest_service_distance(self.population, services)
@@ -99,13 +117,13 @@ class OSMSatLab:
             "coverage_stats": coverage
         }
         
-    def calculate_equity_metrics(self, service_category):
+    def calculate_per_capita_metrics(self, service_category):
         """
         Compute per-capita metrics for a specific service category.
         
         Args:
-           service_category (str): Name of the category.
-           
+            service_category (str): Name of the category.
+            
         Returns:
             dict: { 'services_per_1000': float, 'people_per_service': float }
         """
@@ -113,7 +131,8 @@ class OSMSatLab:
             raise ValueError("Population data not loaded. Call load_population() first.")
             
         if service_category not in self.services:
-            raise ValueError(f"Service category '{service_category}' not found. Call fetch_services() first.")
+            available = list(self.services.keys())
+            raise ValueError(f"Service category '{service_category}' not found. Available categories: {available}")
             
         services = self.services[service_category]
         
