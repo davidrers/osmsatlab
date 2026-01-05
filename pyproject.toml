@@ -1,11 +1,24 @@
 [project]
 name = "osmsatlab"
 version = "0.1.0"
-description = ""
+description = "A library for calculating accessibility and equity metrics using OpenStreetMap data."
+license = "MIT"
 authors = [
-    {name = "David Reyes",email = "da.reyes.engineer@gmail.com"}
+    {name = "David Reyes", email = "da.reyes.engineer@gmail.com"}
 ]
 readme = "README.md"
+repository = "https://github.com/davidrers/osmsatlab"
+homepage = "https://github.com/davidrers/osmsatlab"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "geopandas (>=1.1.2,<2.0.0)",
