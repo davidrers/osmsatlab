@@ -3,7 +3,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 from osmsatlab.metrics.accessibility import calculate_nearest_service_distance, calculate_coverage
-from osmsatlab.metrics.equity import calculate_services_per_capita, calculate_population_per_service
+from osmsatlab.metrics.per_capita import calculate_services_per_capita, calculate_population_per_service
 import numpy as np
 
 @pytest.fixture

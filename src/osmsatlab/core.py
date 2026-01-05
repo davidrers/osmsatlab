@@ -25,7 +25,7 @@ class OSMSatLab:
             load_services (bool, optional): If True, automatically loads all standard service categories.
         """
         if bbox is None and custom_geometry is None:
-            raise ValueError("Must provide either bbox or custom_geometry.")
+            raise ValueError("I need to know where we are looking! Please provide either a 'bbox' (bounding box) or 'custom_geometry'.")
             
         self.bbox = bbox
         self.custom_geometry = custom_geometry
@@ -73,10 +73,10 @@ class OSMSatLab:
         """
         raw_osm = download_osm_data(bbox=self.bbox, custom_geometry=self.custom_geometry, tags=tags)
         
-        # Ensure we only keep centroids/points for distance analysis usually?
-        # WorldPop is points. OSM can be polygons.
-        # For accessibility to a building, the centroid or boundary is fine.
-        # Let's project first.
+        # We usually want to calculate distances to specific points (like the entrance of a building),
+        # rather than to the edge of a large polygon.
+        # So, if we get polygons (like a large hospital campus), let's find their center point.
+        # But first, we need to project the data so our math works in meters, not degrees!
         if raw_osm is not None and not raw_osm.empty:
             projected = raw_osm.to_crs(self.target_crs)
             # Use centroids for polygons to simplify distance calc
@@ -101,20 +101,23 @@ class OSMSatLab:
             dict: { 'population_with_distances': GDF, 'coverage_stats': dict }
         """
         if self.population is None:
-            raise ValueError("Population data not loaded. Call load_population() first.")
+            raise ValueError("I can't calculate accessibility without people! Please run `.load_population()` first so we know where everyone lives.")
             
         if service_category not in self.services:
-            available = list(self.services.keys())
-            raise ValueError(f"Service category '{service_category}' not found. Available categories: {available}")
+            available_categories = list(self.services.keys())
+            raise ValueError(f"I couldn't find the '{service_category}' services. I only have these ones right now: {available_categories}. Did you forget to fetch them?")
             
-        services = self.services[service_category]
-        pop_with_dist = calculate_nearest_service_distance(self.population, services)
+        points_of_interest = self.services[service_category]
         
-        coverage = calculate_coverage(pop_with_dist, distance_col='nearest_dist', threshold=threshold)
+        # Let's figure out how close everyone is to these services
+        population_with_access_info = calculate_nearest_service_distance(self.population, points_of_interest)
+        
+        # Now, let's see how many people are 'close enough' based on our threshold
+        coverage_stats = calculate_coverage(population_with_access_info, distance_col='nearest_dist', threshold=threshold)
         
         return {
-            "population_gdf": pop_with_dist,
-            "coverage_stats": coverage
+            "population_gdf": population_with_access_info,
+            "coverage_stats": coverage_stats
         }
         
     def calculate_per_capita_metrics(self, service_category):
@@ -128,18 +131,21 @@ class OSMSatLab:
             dict: { 'services_per_1000': float, 'people_per_service': float }
         """
         if self.population is None:
-            raise ValueError("Population data not loaded. Call load_population() first.")
+            raise ValueError("I can't calculate equity metrics without population data! Please run `.load_population()` first.")
             
         if service_category not in self.services:
             available = list(self.services.keys())
-            raise ValueError(f"Service category '{service_category}' not found. Available categories: {available}")
+            raise ValueError(f"I don't have any data for '{service_category}'. I can only analyze: {available}.")
             
-        services = self.services[service_category]
+        points_of_interest = self.services[service_category]
         
-        spc = calculate_services_per_capita(self.population, services)
-        pps = calculate_population_per_service(self.population, services)
+        # How many services are there for every 1000 people?
+        services_density = calculate_services_per_capita(self.population, points_of_interest)
+        
+        # Conversely, how many people does each service have to serve on average?
+        burden_per_service = calculate_population_per_service(self.population, points_of_interest)
         
         return {
-            "services_per_1000": spc,
-            "people_per_service": pps
+            "services_per_1000": services_density,
+            "people_per_service": burden_per_service
         }

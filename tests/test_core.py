@@ -16,7 +16,7 @@ def test_load_population(mock_get_pop, mock_proj_crs):
         crs="EPSG:4326"
     )
     
-    lab = OSMSatLab(bbox=(0,0,1,1), crs=mock_proj_crs)
+    lab = OSMSatLab(bbox=(0,0,1,1), crs=mock_proj_crs, load_services=False)
     lab.load_population()
     
     assert lab.population is not None
@@ -31,7 +31,7 @@ def test_fetch_services(mock_download, mock_proj_crs):
         crs="EPSG:4326"
     )
     
-    lab = OSMSatLab(bbox=(0,0,1,1), crs=mock_proj_crs)
+    lab = OSMSatLab(bbox=(0,0,1,1), crs=mock_proj_crs, load_population_year=None)
     lab.fetch_services(tags={'amenity': 'hospital'}, category_name='healthcare')
     
     assert 'healthcare' in lab.services
@@ -67,6 +67,6 @@ def test_workflow(mock_download, mock_get_pop, mock_proj_crs):
     assert stats['total_population'] == 30
     
     # Equity
-    equity = lab.calculate_equity_metrics('health')
+    equity = lab.calculate_per_capita_metrics('health')
     # Services per 1000: (1 / 30) * 1000 = 33.333
     assert equity['services_per_1000'] == (1/30)*1000

@@ -14,27 +14,31 @@ def calculate_nearest_service_distance(population_gdf, services_gdf):
         geopandas.GeoDataFrame: A copy of population_gdf with a 'nearest_dist' column (in meters).
     """
     # Check CRS
+    # First, a quick sanity check on the coordinate systems
     if population_gdf.crs.is_geographic or services_gdf.crs.is_geographic:
-        warnings.warn("Input GeoDataFrames are in a geographic CRS. Distances will be incorrect (degrees). Project to a metric CRS first.")
+        warnings.warn("Hold on! It looks like you're using latitude/longitude (degrees). "
+                      "This makes calculating distances in meters very inaccurate. "
+                      "Please project your data to a metric CRS (like UTM) first!")
         
     if population_gdf.crs != services_gdf.crs:
-        raise ValueError("Population and Services must differ in CRS.")
+        raise ValueError("The population and services checks are in different coordinate systems. We need them to match to compare distances!")
         
     if services_gdf.empty:
-        warnings.warn("No services provided. Setting distance to infinity.")
-        gdf_out = population_gdf.copy()
-        gdf_out['nearest_dist'] = float('inf')
-        return gdf_out
+        warnings.warn("I couldn't find any services in the provided data. Assuming they are infinitely far away.")
+        population_with_results = population_gdf.copy()
+        # No services means infinite distance
+        population_with_results['nearest_dist'] = float('inf')
+        return population_with_results
         
-    # Build Index
-    tree = build_nearest_neighbor_index(services_gdf)
+    # Build a spatial index (KD-tree) so we can find neighbors fast
+    search_tree = build_nearest_neighbor_index(services_gdf)
     
-    # Query
-    distances = query_nearest_distances(tree, population_gdf)
+    # Ask the tree: "For each person, how far is the closest service?"
+    distances_to_nearest = query_nearest_distances(search_tree, population_gdf)
     
-    gdf_out = population_gdf.copy()
-    gdf_out['nearest_dist'] = distances
-    return gdf_out
+    population_with_results = population_gdf.copy()
+    population_with_results['nearest_dist'] = distances_to_nearest
+    return population_with_results
 
 def calculate_coverage(population_gdf, distance_col='nearest_dist', threshold=1000.0):
     """
@@ -49,28 +53,30 @@ def calculate_coverage(population_gdf, distance_col='nearest_dist', threshold=10
         dict: {'coverage_ratio': float, 'covered_population': float, 'total_population': float}
     """
     if distance_col not in population_gdf.columns:
-        raise ValueError(f"Column '{distance_col}' not found in GeoDataFrame.")
+        raise ValueError(f"I can't calculate coverage because I can't find the distance column '{distance_col}'. Did you run the distance calculation first?")
     
-    # Ensure population column exists, else assume 1 per point? No, WorldPop has 'population'.
-    # If not present, warn and assume 1? Or fail? The task implies weighted by population.
-    pop_col = 'population'
-    if pop_col not in population_gdf.columns:
-        warnings.warn(f"'{pop_col}' column not found. Calculating coverage based on point count (unweighted).")
-        # Add temporary weight of 1
-        data = population_gdf.copy()
-        data[pop_col] = 1.0
+    # We need to know how many people are at each point. 
+    # If the 'population' column is missing, we'll assume each point is just 1 person/household.
+    count_column = 'population'
+    if count_column not in population_gdf.columns:
+        warnings.warn(f"I couldn't find a '{count_column}' column, so I'll just count the number of locations (points) instead of the total number of people.")
+        # Create a working copy so we don't mess up the original data
+        data_to_analyze = population_gdf.copy()
+        data_to_analyze[count_column] = 1.0
     else:
-        data = population_gdf
+        data_to_analyze = population_gdf
         
-    total_pop = data[pop_col].sum()
+    total_people = data_to_analyze[count_column].sum()
     
-    covered = data[data[distance_col] <= threshold]
-    covered_pop = covered[pop_col].sum()
+    # Who has a service within the threshold distance?
+    people_with_access = data_to_analyze[data_to_analyze[distance_col] <= threshold]
+    count_with_access = people_with_access[count_column].sum()
     
-    ratio = covered_pop / total_pop if total_pop > 0 else 0.0
+    # Avoid dividing by zero if the world is empty
+    access_ratio = count_with_access / total_people if total_people > 0 else 0.0
     
     return {
-        'coverage_ratio': ratio,
-        'covered_population': covered_pop,
-        'total_population': total_pop
+        'coverage_ratio': access_ratio,
+        'covered_population': count_with_access,
+        'total_population': total_people
     }
