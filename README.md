@@ -1,2 +1,43 @@
-# osmsatlab
-osmsatlab is a Python library for assesing on service accessibility, per-capita service provision, and spatial equity analysis using a vector-based geospatial approach. The project will primarily use OpenStreetMap (OSM) data for service locations and transport networks, combined with a nationwide population dataset (e.g. gridded population data) to quantify accessibility patterns, compute per-capita metrics, and assess spatial inequalities across administrative units.
+# OSMSatLab
+
+**OSMSatLab** is a Python library designed for calculating accessibility and equity metrics using OpenStreetMap (OSM) data. It provides tools to download OSM data, process spatial information, and compute various metrics related to urban accessibility.
+
+## key Features
+
+- **Data Download**: Easily download OpenStreetMap data for any given bounding box.
+- **Spatial Analysis**: Perform spatial operations using efficient indices (R-tree).
+- **Accessibility Metrics**: Calculate distances to nearest services (e.g., hospitals, schools, parks).
+- **Service Coverage**: Evaluate population coverage within specific distances of services.
+
+## Installation
+
+You can install `osmsatlab` using pip (once published):
+
+```bash
+pip install osmsatlab
+```
+
+Or using Poetry:
+
+```bash
+poetry add osmsatlab
+```
+
+## Usage
+
+Here is a quick example of how to use `OSMSatLab`:
+
+```python
+from osmsatlab import OSMSatLab
+
+# Initialize the library
+lab = OSMSatLab()
+
+# Example usage (adjust based on actual API)
+# lab.download_data(bbox=...)
+# metrics = lab.calculate_accessibility(...)
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

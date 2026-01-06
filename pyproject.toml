@@ -1,0 +1,50 @@
+[project]
+name = "osmsatlab"
+version = "0.1.0"
+description = "A library for calculating accessibility and equity metrics using OpenStreetMap data."
+license = "MIT"
+authors = [
+    {name = "David Reyes", email = "da.reyes.engineer@gmail.com"}
+]
+readme = "README.md"
+repository = "https://github.com/davidrers/osmsatlab"
+homepage = "https://github.com/davidrers/osmsatlab"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "geopandas (>=1.1.2,<2.0.0)",
+    "shapely (>=2.1.2,<3.0.0)",
+    "pyproj (>=3.7.2,<4.0.0)",
+    "pandas (>=2.3.3,<3.0.0)",
+    "numpy (>=2.4.0,<3.0.0)",
+    "osmnx (>=2.0.7,<3.0.0)",
+    "networkx (>=3.6.1,<4.0.0)",
+    "rtree (>=1.4.1,<2.0.0)",
+    "matplotlib (>=3.10.8,<4.0.0)",
+    "requests (>=2.32.5,<3.0.0)",
+    "rasterio (>=1.3.0,<2.0.0)",
+    "scipy (>=1.16.3,<2.0.0)",
+    "tqdm (>=4.67.1,<5.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "osmsatlab", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)",
+    "ipykernel (>=7.1.0,<8.0.0)"
+]
