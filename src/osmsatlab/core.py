@@ -33,6 +33,7 @@ class OSMSatLab:
         
         self.population = None
         self.services = {} # Dict of category -> GeoDataFrame
+        self.networks = {} # Dict of network_type -> NetworkX Graph
 
 
         # Pre-load data if requested
@@ -89,13 +90,16 @@ class OSMSatLab:
             
         return self.services[category_name]
         
-    def calculate_accessibility_metrics(self, service_category, threshold=1000):
+    def calculate_accessibility_metrics(self, service_category, threshold=1000, metric_type="euclidean"):
         """
         Compute nearest distance and coverage for a specific service category.
         
         Args:
             service_category (str): Name of the category loaded via fetch_services.
-            threshold (float): Distance threshold in meters (or CRS units).
+            threshold (float): Distance threshold. 
+                               If metric_type is 'euclidean', in meters.
+                               If metric_type is network-based (e.g. 'drive'), in minutes.
+            metric_type (str): "euclidean" (standard straight line) or a network type like "drive", "walk", "bike".
             
         Returns:
             dict: { 'population_with_distances': GDF, 'coverage_stats': dict }
@@ -109,8 +113,29 @@ class OSMSatLab:
             
         points_of_interest = self.services[service_category]
         
-        # Let's figure out how close everyone is to these services
-        population_with_access_info = calculate_nearest_service_distance(self.population, points_of_interest)
+        # Calculate distances
+        if metric_type == "euclidean":
+            population_with_access_info = calculate_nearest_service_distance(self.population, points_of_interest)
+        else:
+            # Assume metric_type is a network mode (e.g. 'drive', 'walk')
+            # Ensure the network is loaded
+            if metric_type not in self.networks:
+                print(f"Network '{metric_type}' not found in cache. Downloading from OSM...")
+                self.load_street_network(metric_type)
+            
+            graph = self.networks[metric_type]
+            
+            # Use the new network distance function with time weighting
+            from osmsatlab.metrics.accessibility import calculate_network_distance
+            
+            # We want time-based metrics (minutes)
+            weight = 'travel_time'
+            population_with_access_info = calculate_network_distance(self.population, points_of_interest, graph, weight=weight)
+            
+            # The result is in seconds (because osmnx calculates travel_time in seconds).
+            # Convert to minutes.
+            # Handle infinite values carefully
+            population_with_access_info['nearest_dist'] = population_with_access_info['nearest_dist'].apply(lambda x: x / 60.0 if x != float('inf') else x)
         
         # Now, let's see how many people are 'close enough' based on our threshold
         coverage_stats = calculate_coverage(population_with_access_info, distance_col='nearest_dist', threshold=threshold)
@@ -119,6 +144,27 @@ class OSMSatLab:
             "population_gdf": population_with_access_info,
             "coverage_stats": coverage_stats
         }
+
+    def load_street_network(self, network_type="drive"):
+        """
+        Download and process the street network from OSM.
+        
+        Args:
+            network_type (str): 'drive', 'walk', 'bike', etc.
+        """
+        from osmsatlab.io.osm import download_street_network
+        import osmnx as ox
+
+        # Download raw graph
+        G_raw = download_street_network(bbox=self.bbox, custom_geometry=self.custom_geometry, network_type=network_type)
+             
+        # Project the graph to our target CRS (meters)
+        # osmnx.project_graph usually projects to UTM automatically if no CRS provided,
+        # but we want to match self.target_crs
+        if G_raw is not None:
+            G_proj = ox.project_graph(G_raw, to_crs=self.target_crs)
+            self.networks[network_type] = G_proj
+        return self.networks.get(network_type)
         
     def calculate_per_capita_metrics(self, service_category):
         """

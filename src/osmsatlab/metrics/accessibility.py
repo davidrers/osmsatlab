@@ -80,3 +80,64 @@ def calculate_coverage(population_gdf, distance_col='nearest_dist', threshold=10
         'covered_population': count_with_access,
         'total_population': total_people
     }
+
+def calculate_network_distance(population_gdf, services_gdf, graph, weight='length'):
+    """
+    Calculate network distance (e.g., driving, walking) from population to nearest service.
+    
+    Args:
+        population_gdf (geopandas.GeoDataFrame): Points representing population.
+        services_gdf (geopandas.GeoDataFrame): Points representing services.
+        graph (networkx.MultiDiGraph): The street network graph (from osmnx).
+        weight (str): Edge attribute to minimize (e.g. 'length', 'travel_time').
+        
+    Returns:
+        geopandas.GeoDataFrame: A copy of population_gdf with a 'nearest_dist' column.
+        NaN or inf is used if no path is found.
+    """
+    import networkx as nx
+    import osmnx as ox
+    import numpy as np
+    
+    if services_gdf.empty:
+        warnings.warn("No services found. Distances will be infinite.")
+        results = population_gdf.copy()
+        results['nearest_dist'] = float('inf')
+        return results
+
+    # 1. Snap points to the nearest graph nodes
+    # We use centroids if they are polygons, but we expect points here usually.
+    # Ensure they are in the same CRS as the graph (usually 4326 for osmnx default, but graph might be projected)
+    # OSMSatLab usually projects data. The graph should be projected too for accurate meters!
+    
+    # We assume 'graph' is already projected (e.g. UTM).
+    # osmnx.nearest_nodes expects X, Y.
+    
+    pop_x = population_gdf.geometry.x.values
+    pop_y = population_gdf.geometry.y.values
+    
+    service_x = services_gdf.geometry.x.values
+    service_y = services_gdf.geometry.y.values
+    
+    # Find nearest nodes
+    pop_nodes = ox.distance.nearest_nodes(graph, pop_x, pop_y)
+    service_nodes = ox.distance.nearest_nodes(graph, service_x, service_y)
+    
+    # 2. Compute shortest paths using multi-source Dijkstra
+    # This finds the shortest distance from ANY of the source nodes to all other nodes in the graph.
+    # unique service nodes to avoid redundant work
+    unique_service_nodes = set(service_nodes)
+    
+    # This dictionary will map node_id -> distance to nearest service node
+    node_distances = nx.multi_source_dijkstra_path_length(graph, sources=unique_service_nodes, weight=weight)
+    
+    # 3. Map distances back to population points
+    distances = []
+    for node in pop_nodes:
+        dist = node_distances.get(node, float('inf'))
+        distances.append(dist)
+        
+    results = population_gdf.copy()
+    results['nearest_dist'] = distances
+    
+    return results
