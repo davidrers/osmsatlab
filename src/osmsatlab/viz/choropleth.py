@@ -13,7 +13,7 @@ def plot_choropleth(gdf, column, title, aoi, log1p=False):
     Create a choropleth map with basemap and AOI outline.
     
     Parameters
-    ----------
+    
     gdf : GeoDataFrame
         Data to plot (must contain the specified column)
     column : str
@@ -26,7 +26,7 @@ def plot_choropleth(gdf, column, title, aoi, log1p=False):
         If True, apply log(1+x) transformation to the data
         
     Returns
-    -------
+    
     tuple
         (fig, ax) matplotlib figure and axes objects
     """
