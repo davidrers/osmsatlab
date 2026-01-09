@@ -5,6 +5,7 @@ Example (viz): Healthcare accessibility analysis for Enschede (NL) and Soacha (C
 from shapely.geometry import shape as shp_shape
 from osmsatlab.core import OSMSatLab
 from osmsatlab.viz import render_maps
+import matplotlib.pyplot as plt
 
 
 # Example 1: Enschede, Netherlands
@@ -20,6 +21,7 @@ enschede_out = render_maps(
     grid_cell_m=800,
     threshold_m=1000
 )
+plt.show()
 
 print(f"ISO3: {enschede_out['iso3']}")
 print(f"Number of units: {len(enschede_out['units'])}")
@@ -75,6 +77,7 @@ soacha_out = render_maps(
     grid_cell_m=800,
     threshold_m=1000
 )
+plt.show()
 
 print(f"ISO3: {soacha_out['iso3']}")
 print(f"Number of units: {len(soacha_out['units'])}")
