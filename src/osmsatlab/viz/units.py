@@ -19,14 +19,14 @@ def aoi_geometry(lab, crs="EPSG:4326"):
     Extract AOI geometry from OSMSatLab instance.
     
     Parameters
-    ----------
+    
     lab : OSMSatLab
         OSMSatLab instance with bbox or custom_geometry
     crs : str, optional
         Target CRS for the output geometry
         
     Returns
-    -------
+    
     shapely.geometry
         AOI geometry in the requested CRS
     """
@@ -52,12 +52,12 @@ def _aoi_intersects_netherlands(aoi_4326):
     This handles border cases like Enschede where the bbox might extend into Germany.
     
     Parameters
-    ----------
+    
     aoi_4326 : shapely.geometry
         AOI geometry in EPSG:4326
         
     Returns
-    -------
+    
     bool
         True if AOI intersects Netherlands
     """
@@ -89,12 +89,12 @@ def nl_lau_units(lab):
     Create analysis units from Netherlands LAU administrative boundaries.
     
     Parameters
-    ----------
+    
     lab : OSMSatLab
         OSMSatLab instance
         
     Returns
-    -------
+    
     tuple
         (units_gdf, aoi_geometry, iso3_code)
     """
@@ -124,14 +124,14 @@ def grid_units(lab, cell_m=800):
     Create analysis units from a regular grid clipped to AOI.
     
     Parameters
-    ----------
+    
     lab : OSMSatLab
         OSMSatLab instance
     cell_m : int, optional
         Grid cell size in meters
         
     Returns
-    -------
+    
     tuple
         (units_gdf, aoi_geometry, iso3_code)
     """
@@ -166,14 +166,14 @@ def analysis_units(lab, grid_cell_m=800):
     Returns LAU municipality polygons for Netherlands, otherwise creates a clipped grid.
     
     Parameters
-    ----------
+    
     lab : OSMSatLab
         OSMSatLab instance
     grid_cell_m : int, optional
         Grid cell size in meters (used for non-NL regions)
         
     Returns
-    -------
+    
     tuple
         (units_gdf, aoi_geometry, iso3_code)
     """
