@@ -12,7 +12,7 @@ def plot_distribution(values, title, bins=60, log10=False, x_label="Distance to 
     Create a histogram distribution plot with median line.
     
     Parameters
-    ----------
+    
     values : array-like
         Values to plot (e.g., distances to services)
     title : str
@@ -25,7 +25,7 @@ def plot_distribution(values, title, bins=60, log10=False, x_label="Distance to 
         Label for x-axis
         
     Returns
-    -------
+    
     tuple
         (fig, ax) matplotlib figure and axes objects
     """
