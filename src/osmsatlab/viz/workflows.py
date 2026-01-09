@@ -15,7 +15,7 @@ def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=800
     Creates population choropleth, service choropleth, and accessibility distribution plots.
     
     Parameters
-    ----------
+    
     lab : OSMSatLab
         OSMSatLab instance with loaded population and services
     place_label : str
@@ -28,7 +28,7 @@ def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=800
         Distance threshold in meters for accessibility metrics
         
     Returns
-    -------
+    
     dict
         Dictionary containing:
         - iso3: ISO3 country code
