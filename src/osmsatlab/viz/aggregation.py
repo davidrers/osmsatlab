@@ -10,7 +10,7 @@ def sum_population_to_units(pop_points, units, pop_col="population"):
     Aggregate population points into analysis units.
     
     Parameters
-    ----------
+    
     pop_points : GeoDataFrame
         Population points with population values
     units : GeoDataFrame
@@ -19,7 +19,7 @@ def sum_population_to_units(pop_points, units, pop_col="population"):
         Name of the population column
         
     Returns
-    -------
+    
     GeoDataFrame
         Units with aggregated population values
     """
@@ -36,14 +36,14 @@ def count_services_to_units(services_points, units):
     Count service points per analysis unit.
     
     Parameters
-    ----------
+    
     services_points : GeoDataFrame
         Service location points
     units : GeoDataFrame
         Analysis units (polygons)
         
     Returns
-    -------
+    
     GeoDataFrame
         Units with service counts
     """
