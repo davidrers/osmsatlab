@@ -15,7 +15,7 @@ from .aggregation import (
 )
 
 from .choropleth import plot_choropleth
-from .plot import plot_distribution
+from .plot import plot_distribution, plot_pairwise
 from .workflows import render_maps
 
 __all__ = [
@@ -27,5 +27,7 @@ __all__ = [
     'count_services_to_units',
     'plot_choropleth',
     'plot_distribution',
+    'plot_pairwise',
     'render_maps',
 ]
+
