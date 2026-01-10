@@ -8,7 +8,7 @@ from .choropleth import plot_choropleth
 from .plot import plot_distribution, plot_pairwise
 
 
-def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=800, threshold_m=1000):
+def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=1000, threshold_m=1000):
     """
     Generate all maps and metrics for a given location.
     
