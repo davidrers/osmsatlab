@@ -18,7 +18,7 @@ enschede_out = render_maps(
     lab_enschede,
     place_label="Enschede (NL)",
     service_category="healthcare",
-    grid_cell_m=800,
+    grid_cell_m=1000,
     threshold_m=1000
 )
 plt.show()
@@ -74,7 +74,7 @@ soacha_out = render_maps(
     lab_soacha,
     place_label="Soacha (COL)",
     service_category="healthcare",
-    grid_cell_m=800,
+    grid_cell_m=1000,
     threshold_m=1000
 )
 plt.show()
