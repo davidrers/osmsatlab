@@ -14,8 +14,8 @@ from .aggregation import (
     count_services_to_units
 )
 
-from .choropleth import plot_choropleth
-from .plot import plot_distribution
+from .choropleth import plot_choropleth, plot_interactive_accessibility_map
+from .plot import plot_distribution, plot_pairwise, plot_coverage_threshold_analysis
 from .workflows import render_maps
 
 __all__ = [
@@ -26,6 +26,11 @@ __all__ = [
     'sum_population_to_units',
     'count_services_to_units',
     'plot_choropleth',
+    'plot_interactive_accessibility_map',
     'plot_distribution',
+    'plot_pairwise',
+    'plot_coverage_threshold_analysis',
     'render_maps',
 ]
+
+
