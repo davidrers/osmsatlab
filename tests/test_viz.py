@@ -237,18 +237,22 @@ def test_plot_interactive_accessibility_map():
 # Test 10: workflows.py - render_maps
 
 def test_render_maps():
-    """Test complete render_maps workflow."""
+    """Test complete render_maps workflow (skips interactive map for testing)."""
     from osmsatlab.viz import render_maps
+    from unittest.mock import patch
     
     lab = MockLab(bbox=(6.0, 52.0, 6.2, 52.2))
     
-    result = render_maps(
-        lab,
-        place_label="Test",
-        service_category="healthcare",
-        grid_cell_m=1000,
-        threshold_m=1000
-    )
+    with patch('osmsatlab.viz.workflows.plot_interactive_accessibility_map') as mock_map:
+        mock_map.return_value.save = lambda x: None
+        
+        result = render_maps(
+            lab,
+            place_label="Test",
+            service_category="healthcare",
+            grid_cell_m=1000,
+            threshold_m=1000
+        )
     
     assert isinstance(result, dict)
     assert 'iso3' in result
