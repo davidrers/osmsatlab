@@ -1,5 +1,13 @@
 """
-Example (viz): Healthcare accessibility analysis for Enschede (NL) and Soacha (COL)
+Example: Healthcare accessibility analysis for Overijssel (NL), Enschede (NL), and Soacha (COL)
+
+This script demonstrates the complete visualization workflow including:
+1. Population choropleth map
+2. Service locations choropleth map
+3. Pairwise scatter plot (population vs services)
+4. Distance distribution histogram
+5. Coverage threshold sensitivity analysis
+6. Interactive web-based accessibility map
 """
 
 from shapely.geometry import shape as shp_shape
@@ -8,9 +16,58 @@ from osmsatlab.viz import render_maps
 import matplotlib.pyplot as plt
 
 
-# Example 1: Enschede, Netherlands
+# Example 1: Overijssel Province, Netherlands
+# Regional analysis using actual administrative boundary
+
+print("=" * 70)
+print("OVERIJSSEL PROVINCE, NETHERLANDS - REGIONAL HEALTHCARE ACCESSIBILITY")
+print("=" * 70)
+
+# Fetch the province boundary from Dutch administrative API
+import requests
+import geopandas as gpd
+
+overijssel_url = "https://apitestbed.geonovum.nl/joins_pygeoapi/collections/nl-provinces/items/b7805978-1c97-5152-a6a4-46e8d8f37c1c?f=json"
+response = requests.get(overijssel_url)
+overijssel_geojson = response.json()
+
+# Extract the geometry
+overijssel_geom = shp_shape(overijssel_geojson["geometry"])
+
+# Calculate area in km²
+overijssel_gdf = gpd.GeoDataFrame([1], geometry=[overijssel_geom], crs="EPSG:4326")
+area_km2 = overijssel_gdf.to_crs("EPSG:28992").area.iloc[0] / 1_000_000
+
+print(f"Province area: {area_km2:.0f} km²")
+print("Downloading population and healthcare data...")
+
+lab_overijssel = OSMSatLab(
+    custom_geometry=overijssel_geom,
+    crs="EPSG:28992"  # RD New (Dutch national projection in meters)
+)
+
+overijssel_out = render_maps(
+    lab_overijssel,
+    place_label="Overijssel Province (NL)",
+    service_category="healthcare",
+    grid_cell_m=1000,
+    threshold_m=1000
+)
+
+print(f"ISO3: {overijssel_out['iso3']}")
+print(f"Number of units: {len(overijssel_out['units'])}")
+print(f"Total population: {overijssel_out['pop_units']['population'].sum():,.0f}")
+print(f"Total healthcare facilities: {overijssel_out['svc_units']['service_count'].sum():.0f}")
+print(f"Coverage at 1000m: {overijssel_out['acc']['coverage_stats']['coverage_ratio']:.1%}")
+
+"""
+# Example 2: Enschede, Netherlands
 # Will use LAU municipality boundaries
-print("=== Enschede, Netherlands ===")
+
+print("=" * 70)
+print("ENSCHEDE, NETHERLANDS - HEALTHCARE ACCESSIBILITY ANALYSIS")
+print("=" * 70)
+
 bbox_enschede = (6.7470, 52.1610, 7.0460, 52.3210)
 lab_enschede = OSMSatLab(bbox=bbox_enschede, crs="EPSG:3857")
 
@@ -18,19 +75,22 @@ enschede_out = render_maps(
     lab_enschede,
     place_label="Enschede (NL)",
     service_category="healthcare",
-    grid_cell_m=800,
+    grid_cell_m=1000,
     threshold_m=1000
 )
-plt.show()
 
 print(f"ISO3: {enschede_out['iso3']}")
 print(f"Number of units: {len(enschede_out['units'])}")
 print(f"Unit type: {enschede_out['units'].geometry.iloc[0].geom_type}")
 
 
-# Example 2: Soacha, Colombia
+# Example 3: Soacha, Colombia
 # Will use grid cells
-print("\n=== Soacha, Colombia ===")
+
+print("\n" + "=" * 70)
+print("SOACHA, COLOMBIA - HEALTHCARE ACCESSIBILITY ANALYSIS")
+print("=" * 70)
+
 SOACHA_GEOJSON = {
     "type": "FeatureCollection",
     "features": [{
@@ -74,11 +134,21 @@ soacha_out = render_maps(
     lab_soacha,
     place_label="Soacha (COL)",
     service_category="healthcare",
-    grid_cell_m=800,
+    grid_cell_m=1000,
     threshold_m=1000
 )
-plt.show()
 
 print(f"ISO3: {soacha_out['iso3']}")
 print(f"Number of units: {len(soacha_out['units'])}")
 print(f"Unit type: {soacha_out['units'].geometry.iloc[0].geom_type}")
+"""
+
+# Display all matplotlib plots
+
+print("\n" + "=" * 70)
+print("Displaying all static plots (5 matplotlib figures per location)")
+print("Interactive maps saved as HTML files")
+print("Close plot windows to end the script")
+print("=" * 70)
+
+plt.show()

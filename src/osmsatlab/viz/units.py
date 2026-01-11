@@ -119,7 +119,7 @@ def nl_lau_units(lab):
     return lau_clip[["unit_id", "unit_name", "geometry"]], aoi_proj, iso3
 
 
-def grid_units(lab, cell_m=800):
+def grid_units(lab, cell_m=1000):
     """
     Create analysis units from a regular grid clipped to AOI.
     
@@ -159,7 +159,7 @@ def grid_units(lab, cell_m=800):
     return grid[["unit_id", "unit_name", "geometry"]], geom, iso3
 
 
-def analysis_units(lab, grid_cell_m=800):
+def analysis_units(lab, grid_cell_m=1000):
     """
     Create analysis units appropriate for the location.
     
