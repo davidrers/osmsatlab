@@ -44,9 +44,9 @@ def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=100
     plot_choropleth(
         pop_units,
         column="population",
-        title=f"Population (log-scaled) — {place_label}",
+        title=f"Population Distribution — {place_label}",
         aoi=aoi,
-        log1p=True
+        log1p=False
     )
 
     # Plot 2: Service locations choropleth
@@ -54,17 +54,17 @@ def render_maps(lab, place_label, service_category="healthcare", grid_cell_m=100
     plot_choropleth(
         svc_units,
         column="service_count",
-        title=f"{service_category.replace('_',' ').title()} locations (log-scaled) — {place_label}",
+        title=f"{service_category.replace('_',' ').title()} Services — {place_label}",
         aoi=aoi,
-        log1p=True
+        log1p=False
     )
 
     # Plot 3: Pairwise scatter plot
     plot_pairwise(
         pop_units,
         svc_units,
-        title=f"Population vs {service_category.replace('_',' ').title()} — {place_label}",
-        log1p=True
+        title=f"Population vs {service_category.replace('_',' ').title()} Services — {place_label}",
+        log1p=False
     )
     
     # Plot 4: Distance distribution
