@@ -17,32 +17,33 @@ import matplotlib.pyplot as plt
 
 
 # Example 1: Overijssel Province, Netherlands
-# Regional analysis using LAU municipality boundaries
+# Regional analysis using actual administrative boundary
 
 print("=" * 70)
 print("OVERIJSSEL PROVINCE, NETHERLANDS - REGIONAL HEALTHCARE ACCESSIBILITY")
 print("=" * 70)
 
-# Fetch the actual province boundary from Dutch administrative API
+# Fetch the province boundary from Dutch administrative API
 import requests
+import geopandas as gpd
+
 overijssel_url = "https://apitestbed.geonovum.nl/joins_pygeoapi/collections/nl-provinces/items/b7805978-1c97-5152-a6a4-46e8d8f37c1c?f=json"
 response = requests.get(overijssel_url)
 overijssel_geojson = response.json()
 
 # Extract the geometry
-from shapely.geometry import shape as shp_shape
 overijssel_geom = shp_shape(overijssel_geojson["geometry"])
 
 # Calculate area in km²
-area_km2 = overijssel_geom.area / 1_000_000 if overijssel_geom.crs else \
-           gpd.GeoSeries([overijssel_geom], crs="EPSG:4326").to_crs("EPSG:28992").area.iloc[0] / 1_000_000
+overijssel_gdf = gpd.GeoDataFrame([1], geometry=[overijssel_geom], crs="EPSG:4326")
+area_km2 = overijssel_gdf.to_crs("EPSG:28992").area.iloc[0] / 1_000_000
 
 print(f"Province area: {area_km2:.0f} km²")
 print("Downloading population and healthcare data...")
 
 lab_overijssel = OSMSatLab(
     custom_geometry=overijssel_geom,
-    crs="EPSG:28992"
+    crs="EPSG:28992"  # RD New (Dutch national projection in meters)
 )
 
 overijssel_out = render_maps(
