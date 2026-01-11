@@ -95,3 +95,50 @@ def plot_pairwise(pop_units, svc_units, title, log1p=False):
     ax.grid(True, alpha=0.3)
     
     return fig, ax
+
+def plot_coverage_threshold_analysis(lab, service_category, thresholds, place_label, metric_type="euclidean"):
+    """
+    Plot how coverage ratio changes across different distance thresholds.
+    
+    Parameters
+    
+    lab : OSMSatLab
+        OSMSatLab instance with population and services
+    service_category : str
+        Service category (e.g., 'healthcare', 'education')
+    thresholds : list of int
+        Distance thresholds in meters to test
+    place_label : str
+        Location label for plot title
+    metric_type : str, optional
+        Distance metric ('euclidean' or 'network')
+        
+    Returns
+    
+    tuple
+        (fig, ax, coverage_dict) where coverage_dict maps thresholds to coverage ratios
+    """
+    ratios = []
+    for t in thresholds:
+        acc_t = lab.calculate_accessibility_metrics(
+            service_category=service_category,
+            threshold=t,
+            metric_type=metric_type
+        )
+        ratios.append(acc_t["coverage_stats"]["coverage_ratio"])
+    
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(thresholds, ratios, marker="o", linewidth=2, markersize=8)
+    ax.set_title(f"{service_category.replace('_', ' ').title()} coverage vs distance threshold — {place_label}")
+    ax.set_xlabel("Distance threshold (m)")
+    ax.set_ylabel("Coverage ratio")
+    ax.set_ylim(0, 1)
+    ax.grid(True, alpha=0.3)
+    
+    for x, y in zip(thresholds, ratios):
+        ax.text(x, y + 0.02, f"{y:.2f}", ha="center", va="bottom")
+    
+    plt.tight_layout()
+    
+    coverage_dict = dict(zip(thresholds, ratios))
+    return fig, ax, coverage_dict
