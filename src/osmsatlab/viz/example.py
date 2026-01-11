@@ -1,5 +1,5 @@
 """
-Example: Healthcare accessibility analysis for Enschede (NL) and Soacha (COL)
+Example: Healthcare accessibility analysis for Overijssel (NL), Enschede (NL), and Soacha (COL)
 
 This script demonstrates the complete visualization workflow including:
 1. Population choropleth map
@@ -16,7 +16,31 @@ from osmsatlab.viz import render_maps
 import matplotlib.pyplot as plt
 
 
-# Example 1: Enschede, Netherlands
+# Example 1: Overijssel Province, Netherlands
+# Will use LAU municipality boundaries
+
+print("=" * 70)
+print("OVERIJSSEL PROVINCE, NETHERLANDS - REGIONAL HEALTHCARE ACCESSIBILITY")
+print("=" * 70)
+
+bbox_overijssel = (6.0, 52.0, 7.0, 52.8)
+lab_overijssel = OSMSatLab(bbox=bbox_overijssel, crs="EPSG:3857")
+
+overijssel_out = render_maps(
+    lab_overijssel,
+    place_label="Overijssel Region (NL)",
+    service_category="healthcare",
+    grid_cell_m=1000,
+    threshold_m=1000
+)
+
+print(f"ISO3: {overijssel_out['iso3']}")
+print(f"Number of units: {len(overijssel_out['units'])}")
+print(f"Unit type: {overijssel_out['units'].geometry.iloc[0].geom_type}")
+print(f"Coverage at 1000m: {overijssel_out['acc']['coverage_stats']['coverage_ratio']:.1%}")
+
+
+# Example 2: Enschede, Netherlands
 # Will use LAU municipality boundaries
 
 print("=" * 70)
@@ -39,10 +63,9 @@ print(f"Number of units: {len(enschede_out['units'])}")
 print(f"Unit type: {enschede_out['units'].geometry.iloc[0].geom_type}")
 
 
-# ============================================================================
-# Example 2: Soacha, Colombia
+# Example 3: Soacha, Colombia
 # Will use grid cells
-# ============================================================================
+
 print("\n" + "=" * 70)
 print("SOACHA, COLOMBIA - HEALTHCARE ACCESSIBILITY ANALYSIS")
 print("=" * 70)
