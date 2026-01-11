@@ -1,20 +1,28 @@
 """
 Example: Healthcare accessibility analysis for Enschede (NL) and Soacha (COL)
+
+This script demonstrates the complete visualization workflow including:
+1. Population choropleth map
+2. Service locations choropleth map
+3. Pairwise scatter plot (population vs services)
+4. Distance distribution histogram
+5. Coverage threshold sensitivity analysis
+6. Interactive web-based accessibility map
 """
 
 from shapely.geometry import shape as shp_shape
 from osmsatlab.core import OSMSatLab
-from osmsatlab.viz import (
-    render_maps,
-    plot_coverage_threshold_analysis,
-    plot_interactive_accessibility_map,
-    analysis_units
-)
+from osmsatlab.viz import render_maps
 import matplotlib.pyplot as plt
 
 
 # Example 1: Enschede, Netherlands
-print("=== Enschede, Netherlands ===")
+# Will use LAU municipality boundaries
+
+print("=" * 70)
+print("ENSCHEDE, NETHERLANDS - HEALTHCARE ACCESSIBILITY ANALYSIS")
+print("=" * 70)
+
 bbox_enschede = (6.7470, 52.1610, 7.0460, 52.3210)
 lab_enschede = OSMSatLab(bbox=bbox_enschede, crs="EPSG:3857")
 
@@ -30,31 +38,15 @@ print(f"ISO3: {enschede_out['iso3']}")
 print(f"Number of units: {len(enschede_out['units'])}")
 print(f"Unit type: {enschede_out['units'].geometry.iloc[0].geom_type}")
 
-# Threshold analysis
-thresholds = [250, 500, 1000, 1500, 2000]
-fig, ax, coverage = plot_coverage_threshold_analysis(
-    lab_enschede,
-    service_category="healthcare",
-    thresholds=thresholds,
-    place_label="Enschede (NL)"
-)
-print(f"Coverage by threshold: {coverage}")
 
-# Interactive map
-units, aoi, iso3 = analysis_units(lab_enschede, grid_cell_m=1000)
-map_enschede = plot_interactive_accessibility_map(
-    lab_enschede,
-    units=units,
-    aoi=aoi,
-    service_category="healthcare",
-    threshold_m=1000
-)
-map_enschede.save("enschede_accessibility.html")
-print("Interactive map saved: enschede_accessibility.html")
-
-
+# ============================================================================
 # Example 2: Soacha, Colombia
-print("\n=== Soacha, Colombia ===")
+# Will use grid cells
+# ============================================================================
+print("\n" + "=" * 70)
+print("SOACHA, COLOMBIA - HEALTHCARE ACCESSIBILITY ANALYSIS")
+print("=" * 70)
+
 SOACHA_GEOJSON = {
     "type": "FeatureCollection",
     "features": [{
@@ -106,16 +98,13 @@ print(f"ISO3: {soacha_out['iso3']}")
 print(f"Number of units: {len(soacha_out['units'])}")
 print(f"Unit type: {soacha_out['units'].geometry.iloc[0].geom_type}")
 
-# Interactive map
-units_s, aoi_s, iso3_s = analysis_units(lab_soacha, grid_cell_m=1000)
-map_soacha = plot_interactive_accessibility_map(
-    lab_soacha,
-    units=units_s,
-    aoi=aoi_s,
-    service_category="healthcare",
-    threshold_m=1000
-)
-map_soacha.save("soacha_accessibility.html")
-print("Interactive map saved: soacha_accessibility.html")
+
+# Display all matplotlib plots
+
+print("\n" + "=" * 70)
+print("Displaying all static plots (5 matplotlib figures per location)")
+print("Interactive maps saved as HTML files")
+print("Close plot windows to end the script")
+print("=" * 70)
 
 plt.show()
