@@ -38,7 +38,8 @@ def plot_distribution(values, title, bins=60, log10=False, x_label="Distance to 
     ax.hist(s.values, bins=bins, edgecolor='black', alpha=0.7)
 
     if len(s):
-        ax.axvline(float(np.nanmedian(s.values)), linewidth=2)
+        ax.axvline(float(np.nanmedian(s.values)), linewidth=2, color='red', linestyle='--', alpha=0.8, label=f'Median: {np.nanmedian(s.values):.0f}m')
+        ax.legend()
 
     ax.set_title(title)
     ax.set_ylabel("Number of population locations")
