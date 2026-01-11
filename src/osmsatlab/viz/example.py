@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 
 # Example 1: Overijssel Province, Netherlands
-# Regional analysis using administrative boundary
+# Regional analysis using LAU municipality boundaries
 
 print("=" * 70)
 print("OVERIJSSEL PROVINCE, NETHERLANDS - REGIONAL HEALTHCARE ACCESSIBILITY")
