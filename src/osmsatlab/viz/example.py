@@ -60,7 +60,7 @@ print(f"Total population: {overijssel_out['pop_units']['population'].sum():,.0f}
 print(f"Total healthcare facilities: {overijssel_out['svc_units']['service_count'].sum():.0f}")
 print(f"Coverage at 1000m: {overijssel_out['acc']['coverage_stats']['coverage_ratio']:.1%}")
 
-
+"""
 # Example 2: Enschede, Netherlands
 # Will use LAU municipality boundaries
 
@@ -141,7 +141,7 @@ soacha_out = render_maps(
 print(f"ISO3: {soacha_out['iso3']}")
 print(f"Number of units: {len(soacha_out['units'])}")
 print(f"Unit type: {soacha_out['units'].geometry.iloc[0].geom_type}")
-
+"""
 
 # Display all matplotlib plots
 
