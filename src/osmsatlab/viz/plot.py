@@ -35,7 +35,7 @@ def plot_distribution(values, title, bins=60, log10=False, x_label="Distance to 
         s = np.log10(s)
 
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.hist(s.values, bins=bins)
+    ax.hist(s.values, bins=bins, edgecolor='black', alpha=0.7)
 
     if len(s):
         ax.axvline(float(np.nanmedian(s.values)), linewidth=2)
