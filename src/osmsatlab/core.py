@@ -13,19 +13,32 @@ class OSMSatLab:
     Manages data (population, services) and facilitates accessibility/equity calculations.
     """
     
-    def __init__(self, bbox=None, custom_geometry=None, crs="EPSG:3857", load_population_year=2020, load_services=True):
+    def __init__(self, bbox=None, custom_geometry=None, city=None, crs="EPSG:3857", load_population_year=2020, load_services=True):
         """
         Initialize the analysis helper.
         
         Args:
             bbox (tuple, optional): (west, south, east, north).
             custom_geometry (shapely.Geometry or str, optional): Area of interest.
+            city (str, optional): Name of a city to geocode and use as the area of interest.
             crs (str): Target CRS for metric calculations (must be projected, default EPSG:3857).
             load_population_year (int, optional): If provided, automatically loads population data for this year.
             load_services (bool, optional): If True, automatically loads all standard service categories.
         """
+        # Handle city geocoding if provided
+        if city:
+            import osmnx as ox
+            try:
+                # Geocode the city to a GeoDataFrame
+                city_gdf = ox.geocode_to_gdf(city)
+                # Take the first result's geometry
+                custom_geometry = city_gdf.geometry.iloc[0]
+                print(f"Successfully located '{city}'")
+            except Exception as e:
+                raise ValueError(f"Could not find the city '{city}'. Please check the spelling or try a more specific name.") from e
+
         if bbox is None and custom_geometry is None:
-            raise ValueError("I need to know where we are looking! Please provide either a 'bbox' (bounding box) or 'custom_geometry'.")
+            raise ValueError("I need to know where we are looking! Please provide either a 'bbox' (bounding box), 'custom_geometry', or a 'city' name.")
             
         self.bbox = bbox
         self.custom_geometry = custom_geometry

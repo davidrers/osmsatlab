@@ -8,6 +8,9 @@ import geopandas as gpd
 import shapely.geometry
 from shapely.geometry import box
 import warnings
+import xarray as xr
+import rioxarray
+
 
 def get_world_boundaries():
     """
@@ -198,3 +201,69 @@ def get_population_data(bbox=None, custom_geometry=None, year=2020):
             gdf_pop = gdf_pop.to_crs("EPSG:4326")
             
         return gdf_pop
+
+def get_population_raster(bbox: tuple[float, float, float, float] | None = None, 
+                         custom_geometry: str | shapely.geometry.base.BaseGeometry | None = None, 
+                         year: int = 2020) -> xr.DataArray:
+    """
+    Download or load cached WorldPop data for a given bounding box as an xarray DataArray.
+    Useful for raster-based analysis like Heat Exposure Index.
+    
+    Args:
+        bbox (tuple, optional): Bounding box as (west, south, east, north).
+        custom_geometry (str or geometry, optional): Path to GeoJSON or Shapely geometry.
+        year (int, optional): Year of the dataset. Defaults to 2020.
+        
+    Returns:
+        xarray.DataArray: Population count raster. Dims: (y, x) or (band, y, x).
+    """
+    if bbox is None and custom_geometry is None:
+        raise ValueError("Either bbox or custom_geometry must be provided.")
+    if bbox is not None and custom_geometry is not None:
+        raise ValueError("Provide either bbox or custom_geometry, not both.")
+        
+    # 1. Define AOI Polygon (Reusing logic)
+    if custom_geometry is not None:
+        if isinstance(custom_geometry, str):
+            gdf_boundary = gpd.read_file(custom_geometry)
+            if gdf_boundary.crs != "EPSG:4326":
+                gdf_boundary = gdf_boundary.to_crs("EPSG:4326")
+            msk = gdf_boundary.union_all()
+        else:
+            msk = custom_geometry
+    else:
+        west, south, east, north = bbox
+        msk = box(west, south, east, north)
+    
+    # 2. Identify Country
+    iso3 = get_country_iso3(msk)
+    
+    # 3. Get Cached File
+    local_filename = get_cached_country_file(iso3, year=year)
+    
+    # 4. Open with rioxarray
+    da = rioxarray.open_rasterio(local_filename, masked=True)
+    
+    # 5. Clip
+    try:
+        # rioxarray expects a list of geometries.
+        # Ensure geometry is in correct CRS (WorldPop is usually EPSG:4326)
+        if da.rio.crs != "EPSG:4326":
+             # This assumes AOI is 4326. If raster is not, we project AOI to raster CRS.
+             # But usually WorldPop is 4326.
+             pass
+             
+        da_clipped = da.rio.clip([msk], "EPSG:4326", drop=True)
+        
+        # Set nodata to NaN if not already
+        da_clipped = da_clipped.where(da_clipped != da_clipped.rio.nodata)
+        
+        # Squeeze band if single band
+        if "band" in da_clipped.dims and da_clipped.sizes["band"] == 1:
+            da_clipped = da_clipped.squeeze("band")
+            
+        return da_clipped
+        
+    except Exception as e:
+        warnings.warn(f"Failed to clip raster, returning full country slice (Warning: {e})")
+        return da
