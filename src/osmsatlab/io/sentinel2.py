@@ -55,6 +55,7 @@ def get_sentinel2_imagery(
     collection: str = "sentinel-2-l2a",
     chunksize: int = 2048,
     add_ndvi: bool = False,
+    add_ndbi: bool = False,
 ):
     """
     Fetch Sentinel-2 imagery for a given area of interest and time range.
@@ -90,6 +91,9 @@ def get_sentinel2_imagery(
             Defaults to 2048.
         add_ndvi (bool, optional): If True, calculate NDVI and add it as a new band.
             Requires B04 (Red) and B08 (NIR) to be present or will automatically load them.
+            Defaults to False.
+        add_ndbi (bool, optional): If True, calculate NDBI (Normalized Difference Built-up Index) and add it as a new band.
+            Requires B11 (SWIR) and B08 (NIR) to be present or will automatically load them.
             Defaults to False.
             
     Returns:
@@ -179,6 +183,13 @@ def get_sentinel2_imagery(
     if add_ndvi:
         if "B04" not in assets_to_load:
             assets_to_load.append("B04")
+        if "B08" not in assets_to_load:
+            assets_to_load.append("B08")
+            
+    # Ensure bands for NDBI are loaded if requested
+    if add_ndbi:
+        if "B11" not in assets_to_load:
+            assets_to_load.append("B11")
         if "B08" not in assets_to_load:
             assets_to_load.append("B08")
     
@@ -313,34 +324,42 @@ def get_sentinel2_imagery(
         cube_filtered = cube_filtered.where(~cloud_mask)
     
     # --- NDVI Calculation ---
-    if add_ndvi:
-        red = cube_filtered.sel(band="B04", drop=True)
-        nir = cube_filtered.sel(band="B08", drop=True)
-        
-        # Calculate NDVI
-        ndvi = (nir - red) / (nir + red)
-        
-        # Expand dims to become a 'band'
-        ndvi = ndvi.expand_dims(band=["NDVI"])
-        
+
+    # --- Index Calculation Helper ---
+    def _add_index(cube, band_name, fn):
         try:
-             # Concatenating arrays with different coordinates (like stackstac's rich metadata) causes conflicts.
-             # We robustly drop all non-dimension coordinates from both arrays to ensure a clean merge.
-             # We want to keep only [time, band, y, x] + [spatial_ref, epsg]
+             idx = fn(cube)
+             idx = idx.expand_dims(band=[band_name])
              
-             dims = set(cube_filtered.dims)
+             # Cleaning coordinates for merge
+             dims = set(cube.dims)
              valid_coords = dims.union({"spatial_ref", "epsg"})
+             coords_to_drop_cube = [c for c in cube.coords if c not in valid_coords]
+             coords_to_drop_idx = [c for c in idx.coords if c not in valid_coords]
              
-             coords_to_drop_cube = [c for c in cube_filtered.coords if c not in valid_coords]
-             # Note: ndvi might have inherited some coords from red/nir subtraction, so clean it too
-             coords_to_drop_ndvi = [c for c in ndvi.coords if c not in valid_coords]
+             cube_stripped = cube.drop_vars(coords_to_drop_cube, errors="ignore")
+             idx_stripped = idx.drop_vars(coords_to_drop_idx, errors="ignore")
              
-             cube_stripped = cube_filtered.drop_vars(coords_to_drop_cube, errors="ignore")
-             ndvi_stripped = ndvi.drop_vars(coords_to_drop_ndvi, errors="ignore")
-             
-             cube_filtered = xr.concat([cube_stripped, ndvi_stripped], dim="band")
+             return xr.concat([cube_stripped, idx_stripped], dim="band")
         except Exception as e:
-            print(f"Warning: Could not calculate/append NDVI: {e}")
+            print(f"Warning: Could not calculate/append {band_name}: {e}")
+            return cube
+
+    # --- NDVI Calculation ---
+    if add_ndvi:
+        def calc_ndvi(c):
+             red = c.sel(band="B04", drop=True)
+             nir = c.sel(band="B08", drop=True)
+             return (nir - red) / (nir + red)
+        cube_filtered = _add_index(cube_filtered, "NDVI", calc_ndvi)
+
+    # --- NDBI Calculation ---
+    if add_ndbi:
+        def calc_ndbi(c):
+             swir = c.sel(band="B11", drop=True)
+             nir = c.sel(band="B08", drop=True)
+             return (swir - nir) / (swir + nir)
+        cube_filtered = _add_index(cube_filtered, "NDBI", calc_ndbi)
 
     # Drop SCL if it wasn't requested by user
     if "SCL" not in bands:
@@ -351,6 +370,9 @@ def get_sentinel2_imagery(
         if add_ndvi and "NDVI" in cube_filtered.band.values:
             if "NDVI" not in bands_to_keep:
                 bands_to_keep.append("NDVI")
+        if add_ndbi and "NDBI" in cube_filtered.band.values:
+            if "NDBI" not in bands_to_keep:
+                bands_to_keep.append("NDBI")
         
         # Select only the desired bands
         cube_filtered = cube_filtered.sel(band=bands_to_keep)
@@ -373,6 +395,7 @@ def get_sentinel2_imagery(
     cube_filtered.attrs["min_coverage"] = min_coverage
     cube_filtered.attrs["mask_clouds"] = str(mask_clouds)
     cube_filtered.attrs["ndvi_added"] = str(add_ndvi)
+    cube_filtered.attrs["ndbi_added"] = str(add_ndbi)
     
     with dask.diagnostics.ProgressBar():
         data = cube_filtered.compute()

@@ -34,47 +34,54 @@ def calculate_heat_exposure_index(
     custom_geometry: str | shapely.geometry.base.BaseGeometry | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-    year: int = 2020
+    year: int = 2020,
+    lst_data: xr.DataArray | None = None, # Support for pre-loaded data
+    pop_data: xr.DataArray | None = None # Support for pre-loaded data
 ) -> xr.DataArray:
     """
     Calculate a Heat Exposure Index based on Land Surface Temperature and Population Density.
-    Fetches MODIS LST and WorldPop data automatically for the specified area and time range.
+    Fetches MODIS LST and WorldPop data automatically for the specified area and time range,
+    OR uses provided pre-loaded data.
     
     Index = (Normalized LST) * (Normalized Population)
     
     Args:
         bbox (tuple, optional): (west, south, east, north) in EPSG:4326.
         custom_geometry (str or geometry, optional): Path to GeoJSON or Shapely geometry.
-        start_date (str): Start date (YYYY-MM-DD).
-        end_date (str): End date (YYYY-MM-DD).
+        start_date (str): Start date (YYYY-MM-DD). Not required if lst_data is provided.
+        end_date (str): End date (YYYY-MM-DD). Not required if lst_data is provided.
         year (int, optional): Year for population data. Defaults to 2020.
+        lst_data (xr.DataArray, optional): Pre-loaded LST data. If provided, fetching is skipped.
+        pop_data (xr.DataArray, optional): Pre-loaded population data. If provided, fetching is skipped.
                                  
     Returns:
         xr.DataArray: Heat Exposure Index (0-1 range, unitless).
     """
-    if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required.")
-
-    # 1. Fetch Data
-    print(f"Fetching MODIS LST from {start_date} to {end_date}...")
-    # Fetch daily data (composite_period=None) so we can average it ourselves
-    # or let the user decide? The prompt implies "start/end for calculation", 
-    # so taking the mean over the period is the standard approach for "Exposure".
-    lst_data = get_modis_temperature(
-        bbox=bbox,
-        custom_geometry=custom_geometry,
-        start_date=start_date,
-        end_date=end_date,
-        composite_period=None, 
-        convert_to_celsius=True
-    )
+    if lst_data is None:
+        if start_date is None or end_date is None:
+            raise ValueError("start_date and end_date are required if lst_data is not provided.")
+            
+        print(f"Fetching MODIS LST from {start_date} to {end_date}...")
+        lst_data = get_modis_temperature(
+            bbox=bbox,
+            custom_geometry=custom_geometry,
+            start_date=start_date,
+            end_date=end_date,
+            composite_period=None, 
+            convert_to_celsius=True
+        )
+    else:
+        print("Using pre-loaded LST data.")
     
-    print(f"Fetching WorldPop Population ({year})...")
-    pop_data = get_population_raster(
-        bbox=bbox,
-        custom_geometry=custom_geometry,
-        year=year
+    if pop_data is None:
+        print(f"Fetching WorldPop Population ({year})...")
+        pop_data = get_population_raster(
+            bbox=bbox,
+            custom_geometry=custom_geometry,
+            year=year
     )
+    else:
+        print("Using pre-loaded Population data.")
     
     # 2. Time Reduction
     if "time" in lst_data.dims:

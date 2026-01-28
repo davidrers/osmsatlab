@@ -9,7 +9,8 @@ def calculate_temporal_median_temperature(
     custom_geometry: str | shapely.geometry.base.BaseGeometry | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-    aggregation: str = "1W"
+    aggregation: str = "1W",
+    lst_data: xr.DataArray | None = None # Support for pre-loaded data
 ) -> xr.DataArray:
     """
     Calculate the temporal median temperature over aggregated periods.
@@ -29,22 +30,25 @@ def calculate_temporal_median_temperature(
         xr.DataArray: Aggregated Temperature DataArray with median values.
                       Dimensions: (time, y, x) where 'time' corresponds to the bin labels.
     """
-    if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required.")
-
-    print(f"Fetching MODIS LST from {start_date} to {end_date}...")
-    
-    # 1. Fetch Daily Data
-    # composite_period=None ensures we get the raw scenes (or as raw as STAC gives us)
-    # We will handle the aggregation here explicitly.
-    lst_data = get_modis_temperature(
-        bbox=bbox,
-        custom_geometry=custom_geometry,
-        start_date=start_date,
-        end_date=end_date,
-        composite_period=None, 
-        convert_to_celsius=True
-    )
+    if lst_data is None:
+        if start_date is None or end_date is None:
+            raise ValueError("start_date and end_date are required if lst_data is not provided.")
+            
+        print(f"Fetching MODIS LST from {start_date} to {end_date}...")
+        
+        # 1. Fetch Daily Data
+        # composite_period=None ensures we get the raw scenes (or as raw as STAC gives us)
+        # We will handle the aggregation here explicitly.
+        lst_data = get_modis_temperature(
+            bbox=bbox,
+            custom_geometry=custom_geometry,
+            start_date=start_date,
+            end_date=end_date,
+            composite_period=None, 
+            convert_to_celsius=True
+        )
+    else:
+        print("Using pre-loaded LST data.")
     
     if "time" not in lst_data.dims:
         warnings.warn("Returned data has no time dimension. Aggregation is not possible.")

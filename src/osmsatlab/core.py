@@ -1,9 +1,17 @@
 from osmsatlab.io.osm import download_osm_data
 from osmsatlab.io.population import get_population_data
+from osmsatlab.io.modis import get_modis_temperature
+from osmsatlab.io.sentinel2 import get_sentinel2_imagery
 from osmsatlab.metrics.accessibility import calculate_nearest_service_distance, calculate_coverage
 from osmsatlab.metrics.per_capita import calculate_services_per_capita, calculate_population_per_service
+from osmsatlab.metrics.heat_exposure import calculate_heat_exposure_index
+from osmsatlab.metrics.temperature import calculate_temporal_median_temperature
+from osmsatlab.metrics.correlation import calculate_temperature_correlation
+from osmsatlab.vis.animation import create_timelapse
 from osmsatlab.constants import SERVICE_DEFINITIONS
 import geopandas as gpd
+import xarray as xr
+import pandas as pd
 import warnings
 from tqdm.auto import tqdm
 
@@ -13,7 +21,7 @@ class OSMSatLab:
     Manages data (population, services) and facilitates accessibility/equity calculations.
     """
     
-    def __init__(self, bbox=None, custom_geometry=None, city=None, crs="EPSG:3857", load_population_year=2020, load_services=True):
+    def __init__(self, bbox=None, custom_geometry=None, city=None, crs="EPSG:3857", load_population_year=2020, load_services=False):
         """
         Initialize the analysis helper.
         
@@ -47,6 +55,7 @@ class OSMSatLab:
         self.population = None
         self.services = {} # Dict of category -> GeoDataFrame
         self.networks = {} # Dict of network_type -> NetworkX Graph
+        self.satellite_data = {} # Dict of source -> xarray.DataArray
 
 
         # Pre-load data if requested
@@ -208,3 +217,201 @@ class OSMSatLab:
             "services_per_1000": services_density,
             "people_per_service": burden_per_service
         }
+
+    # --- Remote Sensing Methods ---
+
+    def load_satellite_data(self, source="temperature", start_date=None, end_date=None, **kwargs):
+        """
+        Unified loader for satellite data.
+        
+        Args:
+            source (str): 'temperature' (MODIS) or 'sentinel2'.
+            start_date (str): YYYY-MM-DD.
+            end_date (str): YYYY-MM-DD.
+            **kwargs: Additional arguments passed to the underlying fetcher 
+                      (e.g., cloud_cover_max, add_ndvi for Sentinel-2).
+                      
+        Returns:
+            xarray.DataArray: The fetched data.
+        """
+        if start_date is None or end_date is None:
+             raise ValueError("Please provide both start_date and end_date.")
+
+        print(f"Fetching {source} data from {start_date} to {end_date}...")
+        
+        if source == "temperature":
+            # For temperature, we default to weekly composites if not specified, for smoother maps
+            if "composite_period" not in kwargs:
+                kwargs["composite_period"] = "1W"
+                
+            data = get_modis_temperature(
+                bbox=self.bbox, 
+                custom_geometry=self.custom_geometry, 
+                start_date=start_date, 
+                end_date=end_date,
+                **kwargs
+            )
+        elif source == "sentinel2":
+            data = get_sentinel2_imagery(
+                bbox=self.bbox, 
+                custom_geometry=self.custom_geometry, 
+                start_date=start_date, 
+                end_date=end_date,
+                **kwargs
+            )
+        else:
+            raise ValueError(f"Unknown source '{source}'. Supported: 'temperature', 'sentinel2'.")
+            
+        self.satellite_data[source] = data
+        return data
+
+    def calculate_heat_exposure(self, start_date, end_date):
+        """
+        Calculate Heat Exposure Index for a specific period.
+        
+        Smart Strategy:
+        1. Checks if 'temperature' data is already loaded.
+        2. If loaded data covers the requested period, it SLICES the data in memory (Fast).
+        3. If not, it FETCHES new data for the specific range (Fallback).
+        """
+        # 1. Prepare Temperature Data
+        lst_subset = None
+        
+        if "temperature" in self.satellite_data:
+            existing_data = self.satellite_data["temperature"]
+            
+            try:
+                # Check strict coverage
+                # Convert to pandas Timestamp for comparison
+                data_min = pd.Timestamp(existing_data.time.min().values)
+                data_max = pd.Timestamp(existing_data.time.max().values)
+                req_start = pd.Timestamp(start_date)
+                req_end = pd.Timestamp(end_date)
+                
+                if req_start >= data_min and req_end <= data_max:
+                    sliced = existing_data.sel(time=slice(start_date, end_date))
+                    if sliced.time.size > 0:
+                        print(f"Reusing loaded temperature data ({sliced.time.size} steps covered)...")
+                        lst_subset = sliced
+                    else:
+                        print("Slice is empty despite range overlap. Fetching fresh data...")
+                else:
+                    print(f"Loaded data ({data_min.date()} to {data_max.date()}) does not cover requested range. Fetching fresh data...")
+            except Exception as e:
+                print(f"Coverage check failed: {e}. Fetching fresh data...")
+
+        return calculate_heat_exposure_index(
+            bbox=self.bbox, 
+            custom_geometry=self.custom_geometry, 
+            start_date=start_date, 
+            end_date=end_date,
+            lst_data=lst_subset # Pass the subset (or None to trigger fetch)
+        )
+
+    def calculate_temporal_temperature(self, start_date, end_date, aggregation="1W"):
+        """
+        Calculate temporal median temperature.
+        Supports Smart Reuse of loaded 'temperature' data.
+        """
+        lst_subset = None
+        if "temperature" in self.satellite_data:
+             existing_data = self.satellite_data["temperature"]
+             try:
+                data_min = pd.Timestamp(existing_data.time.min().values)
+                data_max = pd.Timestamp(existing_data.time.max().values)
+                req_start = pd.Timestamp(start_date)
+                req_end = pd.Timestamp(end_date)
+                
+                if req_start >= data_min and req_end <= data_max:
+                     sliced = existing_data.sel(time=slice(start_date, end_date))
+                     if sliced.time.size > 0:
+                         print(f"Reusing loaded temperature data ({sliced.time.size} steps covered)...")
+                         lst_subset = sliced
+                else:
+                     print("Loaded data does not fully cover requested range. Fetching fresh data...")
+             except Exception:
+                 pass
+        
+        return calculate_temporal_median_temperature(
+            bbox=self.bbox,
+            custom_geometry=self.custom_geometry,
+            start_date=start_date,
+            end_date=end_date,
+            aggregation=aggregation,
+            lst_data=lst_subset
+        )
+
+    def calculate_correlation(self, index_type, start_date, end_date, tensor=False):
+        """
+        Calculate correlation between Temperature and Index (NDVI/NDBI).
+        Fetches necessary data (LST + Sentinel-2) automatically.
+        """
+        lst_subset = None
+        s2_subset = None
+        
+        # 1. Reuse LST?
+        if "temperature" in self.satellite_data:
+             existing_data = self.satellite_data["temperature"]
+             try:
+                data_min = pd.Timestamp(existing_data.time.min().values)
+                data_max = pd.Timestamp(existing_data.time.max().values)
+                req_start = pd.Timestamp(start_date)
+                req_end = pd.Timestamp(end_date)
+                
+                if req_start >= data_min and req_end <= data_max:
+                     sliced = existing_data.sel(time=slice(start_date, end_date))
+                     if sliced.time.size > 0:
+                         print(f"Reusing loaded temperature data for correlation ({sliced.time.size} steps)...")
+                         lst_subset = sliced
+             except Exception:
+                 pass
+
+        # 2. Reuse Sentinel-2?
+        if "sentinel2" in self.satellite_data:
+            existing_s2 = self.satellite_data["sentinel2"]
+            try:
+                # Coverage check
+                data_min = pd.Timestamp(existing_s2.time.min().values)
+                data_max = pd.Timestamp(existing_s2.time.max().values)
+                req_start = pd.Timestamp(start_date)
+                req_end = pd.Timestamp(end_date)
+                
+                if req_start >= data_min and req_end <= data_max:
+                    # Band check
+                    bands_needed = ["B04", "B08"] if index_type == "NDVI" else ["B08", "B11"]
+                    bands_present = existing_s2.band.values
+                    if all(b in bands_present for b in bands_needed):
+                         sliced = existing_s2.sel(time=slice(start_date, end_date))
+                         if sliced.time.size > 0:
+                             print(f"Reusing loaded Sentinel-2 data ({sliced.time.size} steps)...")
+                             s2_subset = sliced
+                    else:
+                        print(f"Loaded Sentinel-2 data missing bands for {index_type} (needs {bands_needed}). Fetching fresh...")
+            except Exception:
+                pass
+
+        return calculate_temperature_correlation(
+            index_type=index_type,
+            bbox=self.bbox,
+            custom_geometry=self.custom_geometry,
+            start_date=start_date,
+            end_date=end_date,
+            tensor=tensor,
+            lst_data=lst_subset,
+            s2_data=s2_subset
+        )
+
+    def animate(self, source, output_path, **kwargs):
+        """
+        Create a timelapse animation from loaded satellite data.
+        
+        Args:
+            source (str): 'temperature' or 'sentinel2'.
+            output_path (str): Filename for GIF.
+            **kwargs: Arguments for create_timelapse (fps, cmap, etc).
+        """
+        if source not in self.satellite_data:
+            raise ValueError(f"No data loaded for '{source}'. Run .load_satellite_data('{source}') first.")
+            
+        data = self.satellite_data[source]
+        create_timelapse(data, output_path=output_path, **kwargs)
