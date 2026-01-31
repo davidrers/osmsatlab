@@ -1,3 +1,4 @@
+import torch
 from osmsatlab.io.osm import download_osm_data
 from osmsatlab.io.population import get_population_data
 from osmsatlab.io.modis import get_modis_temperature
@@ -8,10 +9,12 @@ from osmsatlab.metrics.heat_exposure import calculate_heat_exposure_index
 from osmsatlab.metrics.temperature import calculate_temporal_median_temperature
 from osmsatlab.metrics.correlation import calculate_temperature_correlation
 from osmsatlab.vis.animation import create_timelapse
+from osmsatlab.metrics.zonal import zonal_stats
 from osmsatlab.constants import SERVICE_DEFINITIONS
 import geopandas as gpd
 import xarray as xr
 import pandas as pd
+import numpy as np
 import warnings
 from tqdm.auto import tqdm
 
@@ -415,3 +418,100 @@ class OSMSatLab:
             
         data = self.satellite_data[source]
         create_timelapse(data, output_path=output_path, **kwargs)
+
+    def calculate_heat_access_vulnerability(
+        self,
+        units_gdf,
+        service_category: str,
+        start_date: str,
+        end_date: str,
+        threshold: float = 1000,
+        metric_type: str = "euclidean",
+        year: int = 2020,
+        weights: tuple[float, float, float] = (0.5, 0.4, 0.1),
+        use_torch: bool = True,
+    ):
+        """
+        Combine Heat Exposure Index + Accessibility into a single per-unit score.
+        """
+
+        # 1) Heat Exposure raster
+        heat = calculate_heat_exposure_index(
+            bbox=self.bbox,
+            custom_geometry=self.custom_geometry,
+            start_date=start_date,
+            end_date=end_date,
+            year=year,
+            lst_data=None,
+            pop_data=None,
+        )
+
+        # --- enforce 2D raster for zonal stats ---
+        heat = heat.squeeze(drop=True)
+        if heat.ndim != 2:
+            heat = heat.mean(
+                dim=[d for d in heat.dims if d not in ("x", "y")],
+                skipna=True
+            )
+
+        # 2) Zonal aggregation of heat exposure
+        heat_units = zonal_stats(
+            units=units_gdf,
+            da=heat,
+            stats=("mean",),
+            unit_id_col="unit_id",
+        )
+
+        # 3) Accessibility (population - services)
+        acc = self.calculate_accessibility_metrics(
+            service_category=service_category,
+            threshold=threshold,
+            metric_type=metric_type,
+        )
+        pop_pts = acc["population_gdf"].copy()
+        pop_pts = pop_pts.to_crs(units_gdf.crs)
+
+        joined = gpd.sjoin(
+            pop_pts[["nearest_dist", "population", "geometry"]],
+            units_gdf[["unit_id", "geometry"]],
+            how="left",
+            predicate="within",
+        )
+
+        access_med = joined.groupby("unit_id")["nearest_dist"].median()
+        pop_sum = joined.groupby("unit_id")["population"].sum()
+
+        out = heat_units.merge(access_med.rename("access_median"), on="unit_id", how="left")
+        out = out.merge(pop_sum.rename("population_sum"), on="unit_id", how="left")
+
+        # 4) Normalisation + tensor/array ops (Assignment-2 compliant)
+        h = out["heat_exposure_index_mean"].to_numpy(dtype="float64")
+        a = out["access_median"].to_numpy(dtype="float64")
+        p = out["population_sum"].to_numpy(dtype="float64")
+
+        def _minmax(x):
+            m, M = np.nanmin(x), np.nanmax(x)
+            if not np.isfinite(m) or m == M:
+                return np.zeros_like(x)
+            return (x - m) / (M - m)
+
+        wh, wa, wp = weights
+
+        if use_torch:
+            try:
+                h_n = torch.tensor(_minmax(h))
+                a_n = torch.tensor(_minmax(a))
+                p_n = torch.tensor(_minmax(p))
+                out["vulnerability_score"] = (
+                    wh * h_n + wa * a_n + wp * p_n
+                ).numpy()
+            except Exception:
+                out["vulnerability_score"] = (
+                    wh * _minmax(h) + wa * _minmax(a) + wp * _minmax(p)
+                )
+        else:
+            out["vulnerability_score"] = (
+                wh * _minmax(h) + wa * _minmax(a) + wp * _minmax(p)
+            )
+
+        return out
