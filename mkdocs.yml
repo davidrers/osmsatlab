@@ -1,0 +1,55 @@
+site_name: OSMSatLab
+site_description: Urban Accessibility and Heat Island Analysis Library
+site_author: OSMSatLab Team
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: lime
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_root_heading: true
+            show_source: true
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
+
+nav:
+  - Home: index.md
+  - API Reference:
+      - Core System: reference/core.md
+      - IO Modules:
+          - Sentinel-2: reference/sentinel2.md
+          - MODIS (Temperature): reference/modis.md
+          - OSM & Population: reference/io_general.md
+      - Metrics:
+          - Heat & Vulnerability: reference/heat_exposure.md
+          - Accessibility: reference/accessibility.md
+      - Visualization: reference/viz.md
+  - Interactive Gallery:
+      - Accessibility Analysis: examples/interactive_testing_accesibility_analysis.ipynb
+      - Heat Island Analysis: examples/interactive_testing_heat_island_analysis.ipynb
